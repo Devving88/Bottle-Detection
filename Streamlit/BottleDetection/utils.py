@@ -205,7 +205,7 @@ def inject_custom_css():
             display: none !important;
         }
     </style>
-    """,old_string: unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
 @st.cache_resource(show_spinner="⚡ Loading Neural Model Weights...")
 def load_selected_model(model_path):
