@@ -1,0 +1,9 @@
+streamlit==1.63.0
+scikit-learn
+pandas
+numpy>=2.0.0
+plotly
+joblib
+ultralytics>=8.1
+opencv-python-headless>=4.9
+lapx>=0.5.5

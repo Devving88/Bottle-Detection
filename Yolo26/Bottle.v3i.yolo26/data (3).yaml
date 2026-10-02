@@ -1,0 +1,13 @@
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+nc: 4
+names: ['bad_bottle', 'good_bottle', 'have_cap', 'no_cap']
+
+roboflow:
+  workspace: korakot-chawlart
+  project: bottle-lgvgt
+  version: 3
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/korakot-chawlart/bottle-lgvgt/dataset/3
