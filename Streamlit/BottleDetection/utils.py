@@ -209,35 +209,40 @@ def inject_custom_css():
 
 @st.cache_resource(show_spinner="⚡ Loading Neural Model Weights...")
 def load_selected_model(model_path):
-    if not os.path.exists(model_path):
-        model_path = "model/best.pt"
+    if not model_path or not os.path.exists(model_path):
+        # Fallback search across workspace
+        root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
+        pt_files = glob.glob(os.path.join(root_dir, "**", "*.pt"), recursive=True)
+        if pt_files:
+            model_path = pt_files[0]
+        else:
+            model_path = "model/best.pt"
     return YOLO(model_path)
 
 def get_available_models():
-    """Discover all .pt files across workspace for YOLOv8/26 selection."""
+    """Discover all .pt files across workspace with absolute paths for robust loading."""
     root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
     pt_pattern = os.path.join(root_dir, "**", "*.pt")
     found_files = glob.glob(pt_pattern, recursive=True)
     
     models = {}
     for fpath in found_files:
-        rel_path = os.path.relpath(fpath, os.path.dirname(__file__))
         filename = os.path.basename(fpath)
-        parent_dir = os.path.basename(os.path.dirname(fpath))
         
         # Categorize nice labels for YOLOv8, YOLOv12, YOLOv26
-        if "yolov8" in filename.lower() or "best" in filename.lower():
-            label = f"🚀 YOLOv8 Core -> {filename}"
+        if "yolov8" in filename.lower() or "best" in filename.lower() or "ft" in filename.lower():
+            label = f"🚀 YOLOv8/FT Core -> {filename}"
         elif "yolo12" in filename.lower():
             label = f"⚡ YOLOv12 Engine -> {filename}"
-        elif "yolo26" in filename.lower() or "ft" in filename.lower():
+        elif "yolo26" in filename.lower():
             label = f"✨ YOLOv26 Quantum -> {filename}"
         else:
             label = f"📦 Custom Model -> {filename}"
             
-        models[label] = rel_path
+        models[label] = fpath
         
     if not models:
-        models["Default Model (best.pt)"] = "model/best.pt"
+        fallback = os.path.join(os.path.dirname(__file__), "model/best.pt")
+        models["Default Model (best.pt)"] = fallback
         
     return models
