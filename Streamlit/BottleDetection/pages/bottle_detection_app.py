@@ -7,13 +7,6 @@ from PIL import Image
 from utils import load_selected_model, get_available_models
 import time
 
-try:
-    from streamlit_webrtc import webrtc_streamer, WebRtcMode, RTCConfiguration
-    import av
-    HAS_WEBRTC = True
-except ImportError:
-    HAS_WEBRTC = False
-
 UPLOAD_DIR = "upload"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
@@ -158,84 +151,44 @@ with tab_vid:
 with tab_cam:
     st.markdown("""
         <div class="glass-card">
-            <h3 style="color: #38BDF8; margin-top: 0;">🔴 Live Camera Stream</h3>
-            <p style="color: #94A3B8; font-size: 0.95rem;">Connect to local camera feed or cloud camera input for real-time edge AI object recognition and tracking.</p>
+            <h3 style="color: #38BDF8; margin-top: 0;">🔴 Live Camera Snapshot</h3>
+            <p style="color: #94A3B8; font-size: 0.95rem;">Capture a snapshot with your device camera for real-time AI bottle detection and defect inspection.</p>
         </div>
     """, unsafe_allow_html=True)
     
-    stream_mode = st.radio("Stream Mode", ["📸 Snapshot Capture Mode (Recommended for Cloud)", "⚡ Real-Time WebRTC Stream", "🟢 Local Webcam (Localhost Only)"], horizontal=True)
-    
-    if stream_mode == "📸 Snapshot Capture Mode (Recommended for Cloud)":
-        st.info("💡 **Snapshot Mode:** Click **'Take Photo'** below to instantly capture and run YOLO neural detection on your bottle. Works 100% reliably on Streamlit Cloud!")
-        cam_image = st.camera_input("Take a snapshot with your device camera")
-        if cam_image is not None:
-            image = Image.open(cam_image)
-            img_np = np.array(image)
+    cam_image = st.camera_input("Take a snapshot with your device camera")
+    if cam_image is not None:
+        image = Image.open(cam_image)
+        img_np = np.array(image)
+        
+        with st.spinner("⚡ Running Neural Inference..."):
+            start_time = time.time()
+            results = model(img_np, conf=conf_threshold, iou=iou_threshold)
+            inference_time = (time.time() - start_time) * 1000
             
-            with st.spinner("⚡ Running Neural Inference..."):
-                results = model(img_np, conf=conf_threshold, iou=iou_threshold)
-                res_plotted = results[0].plot()
-                boxes = results[0].boxes
-                count = len(boxes) if boxes is not None else 0
-                
-            res_rgb = cv2.cvtColor(res_plotted, cv2.COLOR_BGR2RGB)
-            st.image(res_rgb, use_container_width=True)
-            st.success(f"🎯 Detection Complete! Found {count} objects.")
-    elif stream_mode == "⚡ Real-Time WebRTC Stream":
-        if not HAS_WEBRTC:
-            st.warning("⚠️ `streamlit-webrtc` is not installed.")
-        else:
-            st.info("ℹ️ WebRTC streaming requires P2P network traversal. If it hangs, please use **Snapshot Capture Mode** above.")
-            class BottleVideoTransformer:
-                def __init__(self, model, conf, iou):
-                    self.model = model
-                    self.conf = conf
-                    self.iou = iou
-
-                def recv(self, frame: av.VideoFrame) -> av.VideoFrame:
-                    img = frame.to_ndarray(format="bgr24")
-                    results = self.model(img, conf=self.conf, iou=self.iou, verbose=False)
-                    res_plotted = results[0].plot()
-                    return av.VideoFrame.from_ndarray(res_plotted, format="bgr24")
-
-            RTC_CONFIGURATION = RTCConfiguration(
-                {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
-            )
-
-            webrtc_streamer(
-                key="bottle-detection-webrtc",
-                mode=WebRtcMode.SENDRECV,
-                rtc_configuration=RTC_CONFIGURATION,
-                video_transformer_factory=lambda: BottleVideoTransformer(model, conf_threshold, iou_threshold),
-                media_stream_constraints={"video": True, "audio": False},
-                async_processing=True,
-            )
-    else:
-        run_cam = st.toggle("🟢 Start Local Webcam", value=False)
-        if run_cam:
-            cam_placeholder = st.empty()
-            stats_placeholder = st.empty()
+            res_plotted = results[0].plot()
+            boxes = results[0].boxes
+            count = len(boxes) if boxes is not None else 0
             
-            cap = cv2.VideoCapture(0)
-            if not cap.isOpened():
-                st.error("⚠️ Local webcam (index 0) is not available in cloud hosting environments (like Streamlit Cloud).")
-            else:
-                while run_cam and cap.isOpened():
-                    ret, frame = cap.read()
-                    if not ret:
-                        st.error("Unable to access local camera device.")
-                        break
-                    
-                    start_t = time.time()
-                    results = model.track(frame, persist=True, conf=conf_threshold, iou=iou_threshold, verbose=False)
-                    fps_infer = 1.0 / max(time.time() - start_t, 1e-5)
+        res_rgb = cv2.cvtColor(res_plotted, cv2.COLOR_BGR2RGB)
+        st.image(res_rgb, use_container_width=True)
+        st.success(f"🎯 Detection Complete! Found {count} objects in {inference_time:.0f}ms.")
 
-                    res_plotted = results[0].plot()
-                    boxes = results[0].boxes
-                    current_count = len(boxes) if boxes is not None else 0
+        if count > 0:
+            data = []
+            for box in boxes:
+                cls_id = int(box.cls[0])
+                conf = float(box.conf[0])
+                cls_name = model.names[cls_id]
+                data.append({"Class": cls_name, "Confidence Score": f"{conf:.2%}"})
+            df_det = pd.DataFrame(data)
+            st.markdown("#### 📋 Detected Instances Breakdown")
+            st.dataframe(df_det, use_container_width=True)
 
-                    frame_rgb = cv2.cvtColor(res_plotted, cv2.COLOR_BGR2RGB)
-                    cam_placeholder.image(frame_rgb, channels="RGB", use_container_width=True)
-                    stats_placeholder.markdown(f"⚡ **Real-time FPS:** {fps_infer:.1f} | 🎯 **Active Detections:** {current_count}")
-                    
-                cap.release()
+            buf = cv2.imencode('.png', res_plotted)[1].tobytes()
+            st.download_button(
+                label="📥 Download Annotated Image",
+                data=buf,
+                file_name="camera_detected_bottle.png",
+                mime="image/png"
+            )
