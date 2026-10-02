@@ -7,6 +7,13 @@ from PIL import Image
 from utils import load_selected_model, get_available_models
 import time
 
+try:
+    from streamlit_webrtc import webrtc_streamer, WebRtcMode
+    import av
+    HAS_WEBRTC = True
+except ImportError:
+    HAS_WEBRTC = False
+
 UPLOAD_DIR = "upload"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
@@ -156,10 +163,32 @@ with tab_cam:
         </div>
     """, unsafe_allow_html=True)
     
-    # Cloud-friendly camera input option
-    use_cloud_cam = st.checkbox("Use Cloud Browser Camera (Recommended for Streamlit Cloud)", value=True)
+    stream_mode = st.radio("Stream Mode", ["⚡ Real-Time WebRTC Stream (No Snapshot)", "📸 Snapshot Capture Mode", "🟢 Local Webcam (Localhost Only)"], horizontal=True)
     
-    if use_cloud_cam:
+    if stream_mode == "⚡ Real-Time WebRTC Stream (No Snapshot)":
+        if not HAS_WEBRTC:
+            st.warning("⚠️ `streamlit-webrtc` is not installed. Please install it to use real-time WebRTC streaming.")
+        else:
+            class BottleVideoTransformer:
+                def __init__(self, model, conf, iou):
+                    self.model = model
+                    self.conf = conf
+                    self.iou = iou
+
+                def recv(self, frame: av.VideoFrame) -> av.VideoFrame:
+                    img = frame.to_ndarray(format="bgr24")
+                    results = self.model(img, conf=self.conf, iou=self.iou, verbose=False)
+                    res_plotted = results[0].plot()
+                    return av.VideoFrame.from_ndarray(res_plotted, format="bgr24")
+
+            webrtc_streamer(
+                key="bottle-detection-webrtc",
+                mode=WebRtcMode.SENDRECV,
+                video_transformer_factory=lambda: BottleVideoTransformer(model, conf_threshold, iou_threshold),
+                media_stream_constraints={"video": True, "audio": False},
+                async_processing=True,
+            )
+    elif stream_mode == "📸 Snapshot Capture Mode":
         cam_image = st.camera_input("Take a snapshot with your device camera")
         if cam_image is not None:
             image = Image.open(cam_image)
@@ -175,27 +204,19 @@ with tab_cam:
             st.image(res_rgb, use_container_width=True)
             st.success(f"🎯 Detection Complete! Found {count} objects.")
     else:
-        col_c1, col_c2 = st.columns([1, 3])
-        with col_c1:
-            run_cam = st.toggle("🟢 Start Local Webcam", value=False)
-        with col_c2:
-            if run_cam:
-                st.markdown('<span style="color: #22c55e; font-weight: 600;">● STREAM ACTIVE & DETECTING</span>', unsafe_allow_html=True)
-            else:
-                st.markdown('<span style="color: #64748B; font-weight: 600;">○ STREAM IDLE</span>', unsafe_allow_html=True)
-        
+        run_cam = st.toggle("🟢 Start Local Webcam", value=False)
         if run_cam:
             cam_placeholder = st.empty()
             stats_placeholder = st.empty()
             
             cap = cv2.VideoCapture(0)
             if not cap.isOpened():
-                st.error("⚠️ Local webcam (index 0) is not available in cloud hosting environments (like Streamlit Cloud). Please check 'Use Cloud Browser Camera' above for browser-based camera input!")
+                st.error("⚠️ Local webcam (index 0) is not available in cloud hosting environments (like Streamlit Cloud).")
             else:
                 while run_cam and cap.isOpened():
                     ret, frame = cap.read()
                     if not ret:
-                        st.error("Unable to access local camera device. Please check hardware permissions.")
+                        st.error("Unable to access local camera device.")
                         break
                     
                     start_t = time.time()
