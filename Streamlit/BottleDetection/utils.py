@@ -72,6 +72,35 @@ def inject_custom_css():
             transform: translateY(-4px);
         }
 
+        /* Modern File Uploader Dropzone */
+        [data-testid="stFileUploader"] {
+            background: rgba(15, 23, 42, 0.5);
+            border: 2px dashed rgba(56, 189, 248, 0.3);
+            border-radius: 16px;
+            padding: 24px;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        [data-testid="stFileUploader"]:hover {
+            border-color: #38BDF8;
+            background: rgba(56, 189, 248, 0.05);
+            box-shadow: 0 10px 30px -10px rgba(56, 189, 248, 0.3);
+        }
+
+        /* Modern Selectbox & Inputs */
+        [data-baseweb="select"] > div {
+            background-color: rgba(15, 23, 42, 0.8) !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            border-radius: 12px !important;
+            color: #FFFFFF !important;
+            transition: all 0.3s ease;
+        }
+
+        [data-baseweb="select"] > div:hover {
+            border-color: #38BDF8 !important;
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.2);
+        }
+
         /* Pulsing Glow Metric Cards */
         @keyframes pulseGlow {
             0% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.2); }
@@ -137,32 +166,46 @@ def inject_custom_css():
             border-right: 1px solid rgba(255, 255, 255, 0.05);
         }
 
-        /* Tabs */
+        /* Tabs Styling Enhancement */
         .stTabs [data-baseweb="tab-list"] {
             gap: 12px;
-            background-color: rgba(15, 23, 42, 0.6);
-            padding: 8px;
+            background-color: rgba(15, 23, 42, 0.7);
+            padding: 10px;
             border-radius: 16px;
-            border: 1px solid rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
         }
 
         .stTabs [data-baseweb="tab"] {
-            background-color: transparent;
-            border-radius: 12px;
-            color: #94A3B8;
-            font-family: 'Outfit', sans-serif;
-            padding: 10px 22px;
-            font-weight: 600;
-            transition: all 0.3s ease;
+            background-color: transparent !important;
+            border-radius: 12px !important;
+            color: #94A3B8 !important;
+            font-family: 'Outfit', sans-serif !important;
+            padding: 12px 24px !important;
+            font-weight: 600 !important;
+            border: none !important;
+            box-shadow: none !important;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .stTabs [data-baseweb="tab"]:hover {
+            color: #FFFFFF !important;
+            background-color: rgba(56, 189, 248, 0.1) !important;
         }
 
         .stTabs [aria-selected="true"] {
-            background: #38BDF8 !important;
-            color: #0F172A !important;
-            box-shadow: 0 8px 20px rgba(56, 189, 248, 0.3);
+            background: linear-gradient(135deg, #38BDF8 0%, #2563EB 100%) !important;
+            color: #FFFFFF !important;
+            box-shadow: 0 8px 25px -5px rgba(56, 189, 248, 0.5) !important;
+        }
+
+        /* Hide Streamlit default tab highlight underline / border lines */
+        .stTabs [data-baseweb="tab-highlight"], 
+        .stTabs div[data-baseweb="tab-border"] {
+            display: none !important;
         }
     </style>
-    """, unsafe_allow_html=True)
+    """,old_string: unsafe_allow_html=True)
 
 @st.cache_resource(show_spinner="⚡ Loading Neural Model Weights...")
 def load_selected_model(model_path):
