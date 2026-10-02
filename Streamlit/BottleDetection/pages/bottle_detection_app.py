@@ -163,12 +163,29 @@ with tab_cam:
         </div>
     """, unsafe_allow_html=True)
     
-    stream_mode = st.radio("Stream Mode", ["⚡ Real-Time WebRTC Stream (No Snapshot)", "📸 Snapshot Capture Mode", "🟢 Local Webcam (Localhost Only)"], horizontal=True)
+    stream_mode = st.radio("Stream Mode", ["📸 Snapshot Capture Mode (Recommended for Cloud)", "⚡ Real-Time WebRTC Stream", "🟢 Local Webcam (Localhost Only)"], horizontal=True)
     
-    if stream_mode == "⚡ Real-Time WebRTC Stream (No Snapshot)":
+    if stream_mode == "📸 Snapshot Capture Mode (Recommended for Cloud)":
+        st.info("💡 **Snapshot Mode:** Click **'Take Photo'** below to instantly capture and run YOLO neural detection on your bottle. Works 100% reliably on Streamlit Cloud!")
+        cam_image = st.camera_input("Take a snapshot with your device camera")
+        if cam_image is not None:
+            image = Image.open(cam_image)
+            img_np = np.array(image)
+            
+            with st.spinner("⚡ Running Neural Inference..."):
+                results = model(img_np, conf=conf_threshold, iou=iou_threshold)
+                res_plotted = results[0].plot()
+                boxes = results[0].boxes
+                count = len(boxes) if boxes is not None else 0
+                
+            res_rgb = cv2.cvtColor(res_plotted, cv2.COLOR_BGR2RGB)
+            st.image(res_rgb, use_container_width=True)
+            st.success(f"🎯 Detection Complete! Found {count} objects.")
+    elif stream_mode == "⚡ Real-Time WebRTC Stream":
         if not HAS_WEBRTC:
-            st.warning("⚠️ `streamlit-webrtc` is not installed. Please install it to use real-time WebRTC streaming.")
+            st.warning("⚠️ `streamlit-webrtc` is not installed.")
         else:
+            st.info("ℹ️ WebRTC streaming requires P2P network traversal. If it hangs, please use **Snapshot Capture Mode** above.")
             class BottleVideoTransformer:
                 def __init__(self, model, conf, iou):
                     self.model = model
@@ -193,21 +210,6 @@ with tab_cam:
                 media_stream_constraints={"video": True, "audio": False},
                 async_processing=True,
             )
-    elif stream_mode == "📸 Snapshot Capture Mode":
-        cam_image = st.camera_input("Take a snapshot with your device camera")
-        if cam_image is not None:
-            image = Image.open(cam_image)
-            img_np = np.array(image)
-            
-            with st.spinner("⚡ Running Neural Inference..."):
-                results = model(img_np, conf=conf_threshold, iou=iou_threshold)
-                res_plotted = results[0].plot()
-                boxes = results[0].boxes
-                count = len(boxes) if boxes is not None else 0
-                
-            res_rgb = cv2.cvtColor(res_plotted, cv2.COLOR_BGR2RGB)
-            st.image(res_rgb, use_container_width=True)
-            st.success(f"🎯 Detection Complete! Found {count} objects.")
     else:
         run_cam = st.toggle("🟢 Start Local Webcam", value=False)
         if run_cam:
