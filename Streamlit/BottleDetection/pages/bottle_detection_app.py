@@ -8,7 +8,7 @@ from utils import load_selected_model, get_available_models
 import time
 
 try:
-    from streamlit_webrtc import webrtc_streamer, WebRtcMode
+    from streamlit_webrtc import webrtc_streamer, WebRtcMode, RTCConfiguration
     import av
     HAS_WEBRTC = True
 except ImportError:
@@ -181,9 +181,14 @@ with tab_cam:
                     res_plotted = results[0].plot()
                     return av.VideoFrame.from_ndarray(res_plotted, format="bgr24")
 
+            RTC_CONFIGURATION = RTCConfiguration(
+                {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
+            )
+
             webrtc_streamer(
                 key="bottle-detection-webrtc",
                 mode=WebRtcMode.SENDRECV,
+                rtc_configuration=RTC_CONFIGURATION,
                 video_transformer_factory=lambda: BottleVideoTransformer(model, conf_threshold, iou_threshold),
                 media_stream_constraints={"video": True, "audio": False},
                 async_processing=True,
