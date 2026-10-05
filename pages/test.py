@@ -752,17 +752,20 @@ with tab_video:
 
                 with col2:
 
-                    st.video(video_bytes)
+                    st.video(
+                        video_bytes,
+                        format="video/webm",
+                    )
 
 
-                output_filename = f"output_{uploaded_file.name}"
+                output_filename = f"output_{Path(uploaded_file.name).stem}.webm"
 
 
                 st.download_button(
                     label="📥 ดาวน์โหลดวิดีโอผลลัพธ์",
                     data=video_bytes,
                     file_name=output_filename,
-                    mime="video/mp4",
+                    mime="video/webm",
                     use_container_width=True,
                 )
 
