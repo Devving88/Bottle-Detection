@@ -3,6 +3,7 @@ import os
 import cv2
 import av
 import tempfile
+import numpy as np
 
 from ultralytics import YOLO
 from pathlib import Path
@@ -820,14 +821,13 @@ with tab_video:
 with tab_webcam:
 
     st.subheader(
-        "ตรวจจับขวดน้ำแบบเรียลไทม์จากเว็บแคม"
+        "📸 ตรวจจับขวดน้ำจากกล้อง (ถ่ายภาพ)"
     )
 
 
     st.markdown(
         """
-        เว็บแคมส่วนนี้ใช้ **WebRTC** แทน `cv2.VideoCapture(0)`
-        ดังนั้นกล้องจะเป็นกล้องของ Browser ที่กำลังเปิด Streamlit
+        ถ่ายภาพจากกล้องเพื่อตรวจสอบขวดน้ำด้วยโมเดล YOLO
         """
     )
 
@@ -850,52 +850,61 @@ with tab_webcam:
 
 
     # =========================================================================
-    # WEBRTC
+    # CAMERA INPUT
     # =========================================================================
 
-    webrtc_ctx = webrtc_streamer(
-        key="water-bottle-webcam",
-        video_processor_factory=YOLOVideoProcessor,
-        media_stream_constraints={
-            "video": {
-                "width": {"ideal": 640},
-                "height": {"ideal": 480},
-                "frameRate": {"ideal": 30},
-            },
-            "audio": False,
-        },
-        async_processing=False,
+    img_file_buffer = st.camera_input(
+        "กดปุ่ม 'Take Photo' เพื่อตรวจจับขวดน้ำ"
     )
 
 
-    # =========================================================================
-    # UPDATE CONFIDENCE
-    # =========================================================================
+    if img_file_buffer is not None:
 
-    if webrtc_ctx.video_processor:
-
-        webrtc_ctx.video_processor.conf = conf_cam
-
-
-    # =========================================================================
-    # CAMERA STATUS
-    # =========================================================================
-
-    if webrtc_ctx.state.playing:
-
-        st.success(
-            "🟢 กล้องกำลังทำงาน"
+        bytes_data = (
+            img_file_buffer.getvalue()
         )
 
-    else:
-
-        st.info(
-            "กดปุ่ม START ด้านบนเพื่อเปิดเว็บแคม "
-            "และกด Allow เมื่อ Browser ขอสิทธิ์ใช้กล้อง"
+        cv2_img = cv2.imdecode(
+            np.frombuffer(
+                bytes_data,
+                np.uint8,
+            ),
+            cv2.IMREAD_COLOR,
         )
 
 
-    st.caption(
-        "หมายเหตุ: Browser ต้องได้รับอนุญาตให้เข้าถึงกล้อง "
-        "และหากนำไปใช้งานออนไลน์ แนะนำให้เปิดผ่าน HTTPS"
-    )
+        results = model(
+            cv2_img,
+            conf=conf_cam,
+            imgsz=640,
+            verbose=False,
+        )
+
+
+        res_plotted = cv2_img.copy()
+
+
+        res_plotted = draw_detections(
+            res_plotted,
+            results,
+        )
+
+
+        res_rgb = cv2.cvtColor(
+            res_plotted,
+            cv2.COLOR_BGR2RGB,
+        )
+
+
+        col1, col2, col3 = st.columns(
+            [1, 2, 1]
+        )
+
+
+        with col2:
+
+            st.image(
+                res_rgb,
+                channels="RGB",
+                use_column_width=True,
+            )
