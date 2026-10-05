@@ -721,13 +721,25 @@ with tab_video:
                 st.stop()
 
 
-            frame_placeholder = st.empty()
-
-            progress_bar = st.progress(
-                0
+            width = int(
+                cap.get(
+                    cv2.CAP_PROP_FRAME_WIDTH
+                )
             )
 
-            status_text = st.empty()
+            height = int(
+                cap.get(
+                    cv2.CAP_PROP_FRAME_HEIGHT
+                )
+            )
+
+            fps = cap.get(
+                cv2.CAP_PROP_FPS
+            )
+
+            if fps <= 0:
+
+                fps = 30.0
 
 
             total_frames = int(
@@ -742,89 +754,101 @@ with tab_video:
                 total_frames = 1
 
 
+            output_filename = f"output_{uploaded_file.name}"
+
+            output_path = os.path.join(
+                UPLOAD_DIR,
+                output_filename,
+            )
+
+
+            fourcc = cv2.VideoWriter_fourcc(
+                *'mp4v'
+            )
+
+            out = cv2.VideoWriter(
+                output_path,
+                fourcc,
+                fps,
+                (width, height),
+            )
+
+
+            progress_bar = st.progress(
+                0
+            )
+
+            status_text = st.empty()
+
+
             count = 0
 
 
-            while cap.isOpened():
+            with st.spinner(
+                "กำลังประมวลผลวิดีโอด้วย YOLO... กรุณารอสักครู่ 🚀"
+            ):
 
-                ret, frame = cap.read()
+                while cap.isOpened():
 
-
-                if not ret:
-
-                    break
-
-
-                count += 1
+                    ret, frame = cap.read()
 
 
-                if (
-                    skip_frame
-                    and count % 2 != 0
-                ):
+                    if not ret:
 
-                    continue
+                        break
 
 
-                # -------------------------------------------------------
-                # YOLO
-                # -------------------------------------------------------
-
-                results = model.track(
-                    frame,
-                    persist=True,
-                    conf=conf_video,
-                    imgsz=640,
-                    verbose=False,
-                )
+                    count += 1
 
 
-                # -------------------------------------------------------
-                # Draw
-                # -------------------------------------------------------
+                    if (
+                        skip_frame
+                        and count % 2 != 0
+                    ):
 
-                frame = draw_detections(
-                    frame,
-                    results,
-                )
+                        continue
 
 
-                # -------------------------------------------------------
-                # BGR -> RGB
-                # -------------------------------------------------------
+                    # -------------------------------------------------------
+                    # YOLO Tracking & Native Plotting
+                    # -------------------------------------------------------
 
-                frame_rgb = cv2.cvtColor(
-                    frame,
-                    cv2.COLOR_BGR2RGB,
-                )
-
-
-                # -------------------------------------------------------
-                # Display
-                # -------------------------------------------------------
-
-                frame_placeholder.image(
-                    frame_rgb,
-                    channels="RGB",
-                    width=400,
-                )
-
-
-                progress_bar.progress(
-                    min(
-                        count / total_frames,
-                        1.0,
+                    results = model.track(
+                        frame,
+                        persist=True,
+                        conf=conf_video,
+                        imgsz=640,
+                        verbose=False,
                     )
-                )
 
 
-                status_text.caption(
-                    f"ประมวลผลเฟรมที่ "
-                    f"{count} / {total_frames}"
-                )
+                    annotated_frame = (
+                        results[0].plot()
+                    )
+
+
+                    out.write(
+                        annotated_frame
+                    )
+
+
+                    progress_bar.progress(
+                        min(
+                            count / total_frames,
+                            1.0,
+                        )
+                    )
+
+
+                    status_text.caption(
+                        f"กำลังประมวลผลเฟรมที่ "
+                        f"{count} / {total_frames}"
+                    )
 
 
             cap.release()
+
+            out.release()
 
 
             status_text.empty()
@@ -833,8 +857,28 @@ with tab_video:
 
 
             st.success(
-                "✅ ตรวจจับวิดีโอเสร็จสิ้น"
+                "✅ ประมวลผลวิดีโอเสร็จสิ้น!"
             )
+
+            st.markdown(
+                "### 🎥 ผลลัพธ์วิดีโอตรวจจับ"
+            )
+
+            st.video(output_path)
+
+
+            with open(
+                output_path,
+                "rb"
+            ) as file_out:
+
+                st.download_button(
+                    label="📥 ดาวน์โหลดวิดีโอผลลัพธ์",
+                    data=file_out,
+                    file_name=output_filename,
+                    mime="video/mp4",
+                    use_container_width=True,
+                )
 
 
 # ===========================================================================
