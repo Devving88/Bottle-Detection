@@ -2,6 +2,7 @@ import streamlit as st
 import os
 import cv2
 import av
+import tempfile
 
 from ultralytics import YOLO
 from pathlib import Path
@@ -230,287 +231,97 @@ def draw_detections(
         return frame
 
 
-    boxes = (
-        results[0]
-        .boxes
-        .xyxy
-        .int()
-        .cpu()
-        .tolist()
-    )
+    for box in results[0].boxes:
 
-
-    class_ids = (
-        results[0]
-        .boxes
-        .cls
-        .int()
-        .cpu()
-        .tolist()
-    )
-
-
-    confs = (
-        results[0]
-        .boxes
-        .conf
-        .cpu()
-        .tolist()
-    )
-
-
-    if results[0].boxes.id is not None:
-
-        track_ids = (
-            results[0]
-            .boxes
-            .id
-            .int()
-            .cpu()
-            .tolist()
+        x1, y1, x2, y2 = map(
+            int,
+            box.xyxy[0]
         )
 
-    else:
+        class_id = int(
+            box.cls[0]
+        )
 
-        track_ids = [
-            None
-        ] * len(boxes)
-
-
-    for (
-        box,
-        class_id,
-        track_id,
-        conf
-    ) in zip(
-        boxes,
-        class_ids,
-        track_ids,
-        confs
-    ):
-
-        x1, y1, x2, y2 = box
+        conf = float(
+            box.conf[0]
+        )
 
         class_name = get_class_name(
             class_id
         )
 
 
-        # ===============================================================
-        # GOOD / BAD BOTTLE
-        # ===============================================================
-
-        if class_name in [
-            "good_bottle",
-            "bad_bottle"
-        ]:
-
-            if class_name == "good_bottle":
-
-                color = (
-                    0,
-                    200,
-                    0
-                )
-
-            else:
-
-                color = (
-                    0,
-                    0,
-                    255
-                )
+        text = f"{class_name} {conf:.2f}"
 
 
-            label = (
-                f"{class_name} {conf:.2f}"
+        if "bottle" in class_name.lower():
+
+            color = (
+                255,
+                144,
+                30
             )
 
+            text_y = y1 + 20
 
-            # -----------------------------------------------------------
-            # Bounding box
-            # -----------------------------------------------------------
+        else:
 
-            cv2.rectangle(
-                frame,
-                (x1, y1),
-                (x2, y2),
-                color,
-                2
-            )
-
-
-            # -----------------------------------------------------------
-            # Label above box
-            # -----------------------------------------------------------
-
-            (
-                tw,
-                th
-            ), _ = cv2.getTextSize(
-                label,
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.6,
-                2
-            )
-
-
-            label_y1 = max(
-                y1 - th - 12,
+            color = (
+                0,
+                255,
                 0
             )
 
-
-            label_y2 = max(
-                y1,
-                th + 12
+            text_y = max(
+                y1 - 10,
+                20
             )
 
 
-            cv2.rectangle(
-                frame,
-                (x1, label_y1),
-                (
-                    x1 + tw + 8,
-                    label_y2
-                ),
-                color,
-                -1
-            )
+        cv2.rectangle(
+            frame,
+            (x1, y1),
+            (x2, y2),
+            color,
+            2
+        )
 
 
-            cv2.putText(
-                frame,
-                label,
-                (
-                    x1 + 4,
-                    label_y2 - 6
-                ),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.6,
-                (
-                    255,
-                    255,
-                    255
-                ),
-                2
-            )
+        (
+            text_w,
+            text_h
+        ), _ = cv2.getTextSize(
+            text,
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.6,
+            2
+        )
 
 
-        # ===============================================================
-        # HAVE CAP / NO CAP
-        # ===============================================================
-
-        elif class_name in [
-            "have_cap",
-            "no_cap"
-        ]:
-
-            if class_name == "have_cap":
-
-                color = (
-                    0,
-                    180,
-                    0
-                )
-
-            else:
-
-                color = (
-                    0,
-                    0,
-                    255
-                )
-
-
-            label = (
-                f"{class_name} {conf:.2f}"
-            )
-
-
-            # -----------------------------------------------------------
-            # Original cap bounding box
-            # -----------------------------------------------------------
-
-            cv2.rectangle(
-                frame,
-                (x1, y1),
-                (x2, y2),
-                color,
-                2
-            )
-
-
-            # -----------------------------------------------------------
-            # Label under cap box
-            # -----------------------------------------------------------
-
+        cv2.rectangle(
+            frame,
             (
-                tw,
-                th
-            ), _ = cv2.getTextSize(
-                label,
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.6,
-                2
-            )
+                x1,
+                text_y - text_h - 5
+            ),
+            (
+                x1 + text_w,
+                text_y + 5
+            ),
+            color,
+            -1
+        )
 
 
-            label_x = x1
-
-            label_y1 = y2
-
-            label_y2 = (
-                y2 + th + 12
-            )
-
-
-            # -----------------------------------------------------------
-            # If label goes outside image,
-            # move it above the box.
-            # -----------------------------------------------------------
-
-            if label_y2 >= frame.shape[0]:
-
-                label_y1 = max(
-                    y1 - th - 12,
-                    0
-                )
-
-                label_y2 = y1
-
-
-            cv2.rectangle(
-                frame,
-                (
-                    label_x,
-                    label_y1
-                ),
-                (
-                    label_x + tw + 8,
-                    label_y2
-                ),
-                color,
-                -1
-            )
-
-
-            cv2.putText(
-                frame,
-                label,
-                (
-                    label_x + 4,
-                    label_y2 - 6
-                ),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.6,
-                (
-                    255,
-                    255,
-                    255
-                ),
-                2
-            )
+        cv2.putText(
+            frame,
+            text,
+            (x1, text_y),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.6,
+            (0, 0, 0),
+            2
+        )
 
 
     return frame
@@ -677,29 +488,11 @@ with tab_video:
 
     if uploaded_file is not None:
 
-        save_path = os.path.join(
-            UPLOAD_DIR,
-            uploaded_file.name,
-        )
-
-
-        with open(
-            save_path,
-            "wb"
-        ) as f:
-
-            f.write(
-                uploaded_file.getbuffer()
-            )
-
-
-        st.success(
-            f"บันทึกไฟล์ไว้ที่ `{save_path}` เรียบร้อยแล้ว"
-        )
+        st.video(uploaded_file)
 
 
         start_video = st.button(
-            "▶️  เริ่มตรวจจับ",
+            "▶️  เริ่มประมวลผลวิดีโอ",
             key="start_video",
             use_container_width=True,
         )
@@ -707,177 +500,267 @@ with tab_video:
 
         if start_video:
 
-            cap = cv2.VideoCapture(
-                save_path
-            )
-
-
-            if not cap.isOpened():
-
-                st.error(
-                    "ไม่สามารถเปิดไฟล์วิดีโอได้"
-                )
-
-                st.stop()
-
-
-            width = int(
-                cap.get(
-                    cv2.CAP_PROP_FRAME_WIDTH
-                )
-            )
-
-            height = int(
-                cap.get(
-                    cv2.CAP_PROP_FRAME_HEIGHT
-                )
-            )
-
-            fps = cap.get(
-                cv2.CAP_PROP_FPS
-            )
-
-            if fps <= 0:
-
-                fps = 30.0
-
-
-            total_frames = int(
-                cap.get(
-                    cv2.CAP_PROP_FRAME_COUNT
-                )
-            )
-
-
-            if total_frames <= 0:
-
-                total_frames = 1
-
-
-            output_filename = f"output_{uploaded_file.name}"
-
-            output_path = os.path.join(
-                UPLOAD_DIR,
-                output_filename,
-            )
-
-
-            fourcc = cv2.VideoWriter_fourcc(
-                *'mp4v'
-            )
-
-            out = cv2.VideoWriter(
-                output_path,
-                fourcc,
-                fps,
-                (width, height),
-            )
-
-
-            progress_bar = st.progress(
-                0
-            )
-
-            status_text = st.empty()
-
-
-            count = 0
-
-
             with st.spinner(
-                "กำลังประมวลผลวิดีโอด้วย YOLO... กรุณารอสักครู่ 🚀"
+                "กำลังประมวลผล... อาจใช้เวลาสักครู่ กรุณารอจนกว่าจะเสร็จสิ้น"
             ):
+
+                tfile_in = tempfile.NamedTemporaryFile(
+                    delete=False,
+                    suffix=".mp4",
+                )
+
+                tfile_in.write(
+                    uploaded_file.read()
+                )
+
+                tfile_in.close()
+
+
+                tfile_out = tempfile.NamedTemporaryFile(
+                    delete=False,
+                    suffix=".mp4",
+                )
+
+                output_path = tfile_out.name
+
+                tfile_out.close()
+
+
+                cap = cv2.VideoCapture(
+                    tfile_in.name
+                )
+
+
+                if not cap.isOpened():
+
+                    st.error(
+                        "ไม่สามารถเปิดไฟล์วิดีโอได้"
+                    )
+
+                    st.stop()
+
+
+                orig_width = int(
+                    cap.get(
+                        cv2.CAP_PROP_FRAME_WIDTH
+                    )
+                )
+
+                orig_height = int(
+                    cap.get(
+                        cv2.CAP_PROP_FRAME_HEIGHT
+                    )
+                )
+
+                orig_fps = int(
+                    cap.get(
+                        cv2.CAP_PROP_FPS
+                    )
+                )
+
+                if orig_fps <= 0:
+
+                    orig_fps = 30.0
+
+
+                total_frames = int(
+                    cap.get(
+                        cv2.CAP_PROP_FRAME_COUNT
+                    )
+                )
+
+                if total_frames <= 0:
+
+                    total_frames = 1
+
+
+                target_width = 640
+
+                target_height = int(
+                    orig_height
+                    * (
+                        target_width
+                        / orig_width
+                    )
+                )
+
+
+                skip_frames = (
+                    2
+                    if skip_frame
+                    else 1
+                )
+
+                out_fps = max(
+                    1,
+                    int(
+                        orig_fps
+                        // skip_frames
+                    ),
+                )
+
+
+                fourcc = cv2.VideoWriter_fourcc(
+                    *'avc1'
+                )
+
+                out = cv2.VideoWriter(
+                    output_path,
+                    fourcc,
+                    out_fps,
+                    (
+                        target_width,
+                        target_height,
+                    ),
+                )
+
+
+                progress_bar = (
+                    st.progress(0)
+                )
+
+                status_text = (
+                    st.empty()
+                )
+
+
+                frame_count = 0
+
+                processed_count = (
+                    0
+                )
+
 
                 while cap.isOpened():
 
-                    ret, frame = cap.read()
-
+                    ret, frame = (
+                        cap.read()
+                    )
 
                     if not ret:
 
                         break
 
 
-                    count += 1
+                    frame_count += (
+                        1
+                    )
 
 
                     if (
-                        skip_frame
-                        and count % 2 != 0
+                        frame_count
+                        % skip_frames
+                        != 0
                     ):
 
                         continue
 
 
-                    # -------------------------------------------------------
-                    # YOLO Tracking & Native Plotting
-                    # -------------------------------------------------------
-
-                    results = model.track(
-                        frame,
-                        persist=True,
-                        conf=conf_video,
-                        imgsz=640,
-                        verbose=False,
-                    )
-
-
-                    annotated_frame = (
-                        results[0].plot()
-                    )
-
-
-                    out.write(
-                        annotated_frame
-                    )
-
-
-                    progress_bar.progress(
-                        min(
-                            count / total_frames,
-                            1.0,
+                    frame_resized = (
+                        cv2.resize(
+                            frame,
+                            (
+                                target_width,
+                                target_height,
+                            ),
                         )
                     )
 
 
-                    status_text.caption(
-                        f"กำลังประมวลผลเฟรมที่ "
-                        f"{count} / {total_frames}"
+                    results = (
+                        model.track(
+                            frame_resized,
+                            persist=True,
+                            conf=conf_video,
+                            imgsz=640,
+                            verbose=False,
+                        )
                     )
 
 
-            cap.release()
-
-            out.release()
-
-
-            status_text.empty()
-
-            progress_bar.empty()
+                    res_plotted = (
+                        draw_detections(
+                            frame_resized.copy(),
+                            results,
+                        )
+                    )
 
 
-            st.success(
-                "✅ ประมวลผลวิดีโอเสร็จสิ้น!"
-            )
-
-            st.markdown(
-                "### 🎥 ผลลัพธ์วิดีโอตรวจจับ"
-            )
-
-            st.video(output_path)
+                    out.write(
+                        res_plotted
+                    )
 
 
-            with open(
-                output_path,
-                "rb"
-            ) as file_out:
+                    processed_count += (
+                        1
+                    )
+
+
+                    if (
+                        total_frames
+                        > 0
+                    ):
+
+                        progress = (
+                            min(
+                                frame_count
+                                / total_frames,
+                                1.0,
+                            )
+                        )
+
+                        progress_bar.progress(
+                            progress
+                        )
+
+                        status_text.text(
+                            f"กำลังประมวลผล: {frame_count}/{total_frames} เฟรม ({(progress*100):.1f}%)"
+                        )
+
+
+                cap.release()
+
+                out.release()
+
+
+                status_text.text(
+                    "ประมวลผลเสร็จสิ้น! กำลังเตรียมวิดีโอแสดงผล..."
+                )
+
+
+                with open(
+                    output_path,
+                    "rb",
+                ) as video_file:
+
+                    video_bytes = (
+                        video_file.read()
+                    )
+
+
+                st.success("สำเร็จ!")
+
+                st.video(video_bytes)
+
+
+                output_filename = f"output_{uploaded_file.name}"
+
 
                 st.download_button(
                     label="📥 ดาวน์โหลดวิดีโอผลลัพธ์",
-                    data=file_out,
+                    data=video_bytes,
                     file_name=output_filename,
                     mime="video/mp4",
                     use_container_width=True,
+                )
+
+
+                os.remove(
+                    tfile_in.name
+                )
+
+                os.remove(
+                    output_path
                 )
 
 
