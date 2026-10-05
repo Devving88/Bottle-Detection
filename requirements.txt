@@ -1,4 +1,4 @@
-streamlit==1.38.0
+streamlit==1.37.0
 scikit-learn
 pandas
 numpy>=1.26,<2.0
@@ -7,5 +7,5 @@ joblib
 ultralytics>=8.1
 opencv-python-headless>=4.9
 lapx>=0.5.5
-streamlit-webrtc
+streamlit-webrtc==0.47.4
 av
