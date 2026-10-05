@@ -9,18 +9,6 @@ from streamlit_webrtc import webrtc_streamer, VideoProcessorBase
 
 
 # ===========================================================================
-# PAGE SETTINGS
-# ===========================================================================
-
-st.set_page_config(
-    page_title="Water Bottle Detection",
-    page_icon="💧",
-    layout="wide",
-    initial_sidebar_state="expanded",
-)
-
-
-# ===========================================================================
 # MODEL SETTINGS
 # ===========================================================================
 
