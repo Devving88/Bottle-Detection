@@ -48,26 +48,21 @@ col_model, col_info, col_f1 = st.columns(
 
 with col_model:
 
-    st.markdown(
-        "### 🤖 เลือกโมเดล"
-    )
-
     selected_model = st.selectbox(
-        "Model",
+        "🤖 เลือกโมเดล",
         model_files,
         format_func=lambda x: x.stem,
-        label_visibility="collapsed",
     )
 
 
 with col_info:
 
     st.markdown(
-        "### 📦 โมเดลที่เลือก"
+        "**📦 โมเดลที่เลือก**"
     )
 
-    st.info(
-        selected_model.name
+    st.markdown(
+        f"`{selected_model.name}`"
     )
 
 
@@ -92,11 +87,11 @@ with col_f1:
         f1, confidence = F1_STATS[model_key]
 
         st.markdown(
-            "### 📊 F1 Confidence"
+            "**📊 F1 Confidence**"
         )
 
-        st.info(
-            f"All classes {f1:.2f} at {confidence:.3f}"
+        st.markdown(
+            f"All {f1:.2f} (conf {confidence:.3f})"
         )
 
 
