@@ -488,7 +488,11 @@ with tab_video:
 
     if uploaded_file is not None:
 
-        st.video(uploaded_file)
+        col1, col2, col3 = st.columns([1, 2, 1])
+
+        with col2:
+
+            st.video(uploaded_file)
 
 
         start_video = st.button(
@@ -518,7 +522,7 @@ with tab_video:
 
                 tfile_out = tempfile.NamedTemporaryFile(
                     delete=False,
-                    suffix=".mp4",
+                    suffix=".webm",
                 )
 
                 output_path = tfile_out.name
@@ -584,6 +588,10 @@ with tab_video:
                     )
                 )
 
+                target_height = (
+                    target_height // 2
+                ) * 2
+
 
                 skip_frames = (
                     2
@@ -601,7 +609,7 @@ with tab_video:
 
 
                 fourcc = cv2.VideoWriter_fourcc(
-                    *'avc1'
+                    *'vp80'
                 )
 
                 out = cv2.VideoWriter(
@@ -740,7 +748,11 @@ with tab_video:
 
                 st.success("สำเร็จ!")
 
-                st.video(video_bytes)
+                col1, col2, col3 = st.columns([1, 2, 1])
+
+                with col2:
+
+                    st.video(video_bytes)
 
 
                 output_filename = f"output_{uploaded_file.name}"
