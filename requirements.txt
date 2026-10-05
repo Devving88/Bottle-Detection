@@ -7,5 +7,5 @@ joblib
 ultralytics>=8.1
 opencv-python-headless>=4.9
 lapx>=0.5.5
-streamlit-webrtc==0.47.4
+streamlit-webrtc
 av
