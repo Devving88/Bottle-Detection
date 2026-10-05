@@ -254,23 +254,62 @@ def draw_detections(
         text = f"{class_name} {conf:.2f}"
 
 
-        if "bottle" in class_name.lower():
+        label_lower = class_name.lower()
+
+
+        if label_lower == "bad_bottle":
+
+            color = (
+                0,
+                0,
+                255
+            )  # สีแดง
+
+            text_y = y1 + 20
+
+        elif label_lower == "good_bottle":
 
             color = (
                 255,
                 144,
                 30
-            )
+            )  # สีฟ้า
 
             text_y = y1 + 20
 
-        else:
+        elif label_lower == "no_cap":
+
+            color = (
+                0,
+                165,
+                255
+            )  # สีส้ม
+
+            text_y = max(
+                y1 - 10,
+                20
+            )
+
+        elif label_lower == "have_cap":
 
             color = (
                 0,
                 255,
                 0
+            )  # สีเขียว
+
+            text_y = max(
+                y1 - 10,
+                20
             )
+
+        else:
+
+            color = (
+                255,
+                255,
+                255
+            )  # สีขาว
 
             text_y = max(
                 y1 - 10,
