@@ -374,8 +374,6 @@ class YOLOVideoProcessor(
 
         self.model = model
 
-        self.conf = 0.25
-
         # Prevent multiple frames from being
         # processed at the same time.
         self.processing = False
@@ -412,6 +410,8 @@ class YOLOVideoProcessor(
 
         try:
 
+            current_conf = st.session_state.get("conf_cam", 0.25)
+
             # -----------------------------------------------------------
             # YOLO Tracking
             # -----------------------------------------------------------
@@ -419,7 +419,7 @@ class YOLOVideoProcessor(
             results = self.model.track(
                 img,
                 persist=True,
-                conf=self.conf,
+                conf=current_conf,
                 imgsz=640,
                 verbose=False,
             )
@@ -821,13 +821,13 @@ with tab_video:
 with tab_webcam:
 
     st.subheader(
-        "📸 ตรวจจับขวดน้ำจากกล้อง (ถ่ายภาพ)"
+        "🎥 เว็บแคมเรียลไทม์ (Real-time Webcam Detection)"
     )
 
 
     st.markdown(
         """
-        ถ่ายภาพจากกล้องเพื่อตรวจสอบขวดน้ำด้วยโมเดล YOLO
+        เปิดกล้องเว็บแคมเพื่อตรวจจับขวดน้ำแบบเรียลไทม์ด้วย YOLO
         """
     )
 
@@ -850,61 +850,18 @@ with tab_webcam:
 
 
     # =========================================================================
-    # CAMERA INPUT
+    # WEBRTC STREAMER
     # =========================================================================
 
-    img_file_buffer = st.camera_input(
-        "กดปุ่ม 'Take Photo' เพื่อตรวจจับขวดน้ำ"
+    webrtc_streamer(
+        key="water-bottle-detection",
+        video_processor_factory=YOLOVideoProcessor,
+        media_stream_constraints={
+            "video": {"width": 640, "height": 480},
+            "audio": False,
+        },
+        rtc_configuration={
+            "iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]
+        },
+        async_processing=True,
     )
-
-
-    if img_file_buffer is not None:
-
-        bytes_data = (
-            img_file_buffer.getvalue()
-        )
-
-        cv2_img = cv2.imdecode(
-            np.frombuffer(
-                bytes_data,
-                np.uint8,
-            ),
-            cv2.IMREAD_COLOR,
-        )
-
-
-        results = model(
-            cv2_img,
-            conf=conf_cam,
-            imgsz=640,
-            verbose=False,
-        )
-
-
-        res_plotted = cv2_img.copy()
-
-
-        res_plotted = draw_detections(
-            res_plotted,
-            results,
-        )
-
-
-        res_rgb = cv2.cvtColor(
-            res_plotted,
-            cv2.COLOR_BGR2RGB,
-        )
-
-
-        col1, col2, col3 = st.columns(
-            [1, 2, 1]
-        )
-
-
-        with col2:
-
-            st.image(
-                res_rgb,
-                channels="RGB",
-                use_column_width=True,
-            )
