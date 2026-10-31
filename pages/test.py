@@ -420,7 +420,7 @@ class YOLOVideoProcessor(
                 img,
                 persist=True,
                 conf=current_conf,
-                imgsz=640,
+                imgsz=320,
                 verbose=False,
             )
 
@@ -715,7 +715,7 @@ with tab_video:
                             frame_resized,
                             persist=True,
                             conf=conf_video,
-                            imgsz=640,
+                            imgsz=320,
                             verbose=False,
                         )
                     )
